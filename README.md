@@ -1,6 +1,6 @@
 # Gradient Generator
 
-Static Vite + TypeScript app for generating Roblox RichText gradients with live preview output.
+A web-app for generating Roblox RichText gradients with live preview output.
 
 ## Development
 
