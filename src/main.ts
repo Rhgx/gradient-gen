@@ -21,6 +21,7 @@ const sliderMaxPlaybackRate = 1.18;
 const previewFontsByName = new Map(
   previewFontCatalog.fonts.map((font) => [font.name, font]),
 );
+const previewFontLoadPromises = new Map<string, Promise<FontFace[]>>();
 
 type UiSoundName = "button" | "toggle" | "slider" | "confirm";
 
@@ -227,7 +228,7 @@ let lastSliderSoundAt = 0;
 let lastSliderSoundValue = Number.parseInt(colorLimitSlider.value, 10);
 
 renderFontOptions();
-preloadPreviewFonts();
+warmPreviewFont(defaultPreviewFontName);
 initializeUiSounds();
 resetPalette();
 syncColorLimitValue(defaultColorLimit);
@@ -302,26 +303,6 @@ function renderFontOptions(): void {
     ),
   ];
   fontSelect.innerHTML = options.join("");
-}
-
-function preloadPreviewFonts(): void {
-  for (const font of previewFontCatalog.fonts) {
-    if (!document.head.querySelector(`link[rel="preload"][href="${font.url}"]`)) {
-      const link = document.createElement("link");
-      link.rel = "preload";
-      link.as = "font";
-      link.href = font.url;
-      link.type = getFontMimeType(font.format);
-      link.crossOrigin = "anonymous";
-      document.head.appendChild(link);
-    }
-  }
-
-  void Promise.allSettled(
-    previewFontCatalog.fonts.map((font) =>
-      document.fonts.load(`${font.style} ${font.weight} 1em "${font.name}"`),
-    ),
-  );
 }
 
 function initializeUiSounds(): void {
@@ -537,20 +518,25 @@ function applyPreviewFont(fontName?: string): void {
     return;
   }
 
+  warmPreviewFont(previewFont.name);
   previewSurface.style.fontFamily = `"${previewFont.name}", "Trebuchet MS", sans-serif`;
   previewSurface.style.fontWeight = String(previewFont.weight);
   previewSurface.style.fontStyle = previewFont.style;
 }
 
-function getFontMimeType(format: string): string {
-  switch (format) {
-    case "opentype":
-      return "font/otf";
-    case "truetype":
-      return "font/ttf";
-    default:
-      return "font/ttf";
+function warmPreviewFont(fontName?: string): void {
+  const resolvedFontName = fontName || defaultPreviewFontName;
+  const previewFont = previewFontsByName.get(resolvedFontName);
+
+  if (!previewFont || previewFontLoadPromises.has(previewFont.name)) {
+    return;
   }
+
+  const loadPromise = document.fonts
+    .load(`${previewFont.style} ${previewFont.weight} 1em "${previewFont.name}"`)
+    .catch(() => []);
+
+  previewFontLoadPromises.set(previewFont.name, loadPromise);
 }
 
 function createUiSoundPools(): Record<UiSoundName, UiSoundPool> {
