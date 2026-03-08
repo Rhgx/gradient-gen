@@ -615,6 +615,14 @@ textarea {
   text-align: center;
   font-weight: 800;
   font-size: 1.15rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.gloss-number__input::-webkit-outer-spin-button,
+.gloss-number__input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .gloss-number__input[data-invalid="true"] {

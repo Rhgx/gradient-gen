@@ -13,11 +13,59 @@ import "./styles.css";
 const defaultColors = ["#4A90E2", "#7EB8FF", "#F3953D"];
 const defaultPreviewFontName = "Source Sans Pro";
 const minColorLimit = 2;
-const maxColorLimit = 64;
+const maxColorLimit = 100;
 const defaultColorLimit = 8;
+const sliderSoundThrottleMs = 70;
+const sliderMinPlaybackRate = 0.78;
+const sliderMaxPlaybackRate = 1.18;
 const previewFontsByName = new Map(
   previewFontCatalog.fonts.map((font) => [font.name, font]),
 );
+
+type UiSoundName = "button" | "toggle" | "slider" | "confirm";
+
+interface UiSoundDefinition {
+  poolSize: number;
+  src: string;
+  volume: number;
+  playbackRates: number[];
+}
+
+interface UiSoundPool {
+  index: number;
+  instances: HTMLAudioElement[];
+}
+
+interface UiSoundPlayOptions {
+  playbackRate?: number;
+}
+
+const uiSoundDefinitions: Record<UiSoundName, UiSoundDefinition> = {
+  button: {
+    src: "/sfx/button-click-soft.wav",
+    volume: 0.16,
+    poolSize: 3,
+    playbackRates: [1, 0.9, 1.08],
+  },
+  toggle: {
+    src: "/sfx/toggle-switch.wav",
+    volume: 0.2,
+    poolSize: 3,
+    playbackRates: [1.04, 0.82, 0.92],
+  },
+  slider: {
+    src: "/sfx/slider-tick.wav",
+    volume: 0.12,
+    poolSize: 4,
+    playbackRates: [1],
+  },
+  confirm: {
+    src: "/sfx/button-click-soft.wav",
+    volume: 0.18,
+    poolSize: 2,
+    playbackRates: [1.14, 0.92],
+  },
+};
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -123,15 +171,11 @@ app.innerHTML = `
               />
               <div class="gloss-range__legend" aria-hidden="true">
                 <span>${minColorLimit}</span>
-                <span>${maxColorLimit}</span>
+                <span id="colorLimitMaxLabel">${maxColorLimit}</span>
               </div>
             </div>
           </div>
         </div>
-
-        <p class="hint-text">
-          Drag the grip to reorder. Spaces stay uncolored, and the color cap stays optional.
-        </p>
       </div>
     </section>
 
@@ -176,9 +220,15 @@ const colorLimitControl = getElement<HTMLDivElement>("#colorLimitControl");
 const colorLimitToggle = getElement<HTMLInputElement>("#colorLimitToggle");
 const colorLimitInput = getElement<HTMLInputElement>("#colorLimitInput");
 const colorLimitSlider = getElement<HTMLInputElement>("#colorLimitSlider");
+const colorLimitMaxLabel = getElement<HTMLSpanElement>("#colorLimitMaxLabel");
+const uiSoundPools = createUiSoundPools();
+const uiSoundPlaybackIndexes = createUiSoundPlaybackIndexes();
+let lastSliderSoundAt = 0;
+let lastSliderSoundValue = Number.parseInt(colorLimitSlider.value, 10);
 
 renderFontOptions();
 preloadPreviewFonts();
+initializeUiSounds();
 resetPalette();
 syncColorLimitValue(defaultColorLimit);
 updateColorLimitState();
@@ -200,10 +250,14 @@ resetPaletteButton.addEventListener("click", () => {
   renderOutput();
 });
 colorLimitToggle.addEventListener("change", () => {
+  playUiSound("toggle", {
+    playbackRate: colorLimitToggle.checked ? 1.08 : 0.76,
+  });
   updateColorLimitState();
   renderOutput();
 });
 colorLimitSlider.addEventListener("input", () => {
+  maybePlaySliderSound();
   syncColorLimitValue(Number.parseInt(colorLimitSlider.value, 10));
   renderOutput();
 });
@@ -230,6 +284,7 @@ colorLimitInput.addEventListener("blur", () => {
 });
 copyButton.addEventListener("click", async () => {
   await navigator.clipboard.writeText(outputArea.value);
+  playUiSound("confirm");
   copyButton.textContent = "Copied";
   window.setTimeout(() => {
     copyButton.textContent = "Copy";
@@ -267,6 +322,22 @@ function preloadPreviewFonts(): void {
       document.fonts.load(`${font.style} ${font.weight} 1em "${font.name}"`),
     ),
   );
+}
+
+function initializeUiSounds(): void {
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const button = target.closest("button");
+    if (!button || button.matches(".color-stop__grip, #copyButton")) {
+      return;
+    }
+
+    playUiSound("button");
+  });
 }
 
 function addColorStop(value: string): void {
@@ -328,6 +399,8 @@ function renderOutput(): void {
     colorList.querySelectorAll<HTMLInputElement>(".color-stop__hex"),
   ).map((input) => input.value);
   const selectedFontName = fontSelect.value || undefined;
+  const visibleCharacters = countVisibleCharacters(textInput.value);
+  updateColorLimitBounds(visibleCharacters);
   const colorLimit = getSelectedColorLimit();
 
   const result = generateGradientResult({
@@ -337,8 +410,6 @@ function renderOutput(): void {
     colorLimit,
   });
 
-  const visibleCharacters = countVisibleCharacters(textInput.value);
-  const usedColorCount = new Set(result.gradientColors).size;
   outputArea.value = result.richText;
   applyPreviewFont(selectedFontName);
 
@@ -365,14 +436,8 @@ function renderOutput(): void {
   }
 
   const messages = [...result.validationErrors.map((error) => error.message)];
-  if (messages.length === 0 && visibleCharacters > 0) {
-    if (colorLimit) {
-      messages.push(
-        `Color cap active: ${usedColorCount} distinct colors across ${visibleCharacters} visible characters.`,
-      );
-    } else {
-      messages.push("Preview and export are now driven by the same typed generator.");
-    }
+  if (messages.length === 0) {
+    messages.push("Preview and export are now driven by the same typed generator.");
   }
 
   feedback.innerHTML = messages
@@ -400,7 +465,7 @@ function parseColorLimit(value: string): number | null {
 }
 
 function clampColorLimit(value: number): number {
-  return Math.min(maxColorLimit, Math.max(minColorLimit, value));
+  return Math.min(getCurrentMaxColorLimit(), Math.max(minColorLimit, value));
 }
 
 function syncColorLimitValue(value: number): void {
@@ -419,13 +484,47 @@ function updateColorLimitState(): void {
   colorLimitSlider.disabled = !enabled;
 }
 
+function updateColorLimitBounds(visibleCharacters: number): void {
+  const nextMaximum = String(resolveColorLimitMax(visibleCharacters));
+
+  colorLimitInput.max = nextMaximum;
+  colorLimitSlider.max = nextMaximum;
+  colorLimitMaxLabel.textContent = nextMaximum;
+
+  const clampedValue = clampColorLimit(Number.parseInt(colorLimitSlider.value, 10));
+  colorLimitInput.value = String(clampedValue);
+  colorLimitSlider.value = String(clampedValue);
+  lastSliderSoundValue = clampedValue;
+  updateSliderProgress();
+}
+
 function updateSliderProgress(): void {
   const minimum = Number.parseInt(colorLimitSlider.min, 10);
   const maximum = Number.parseInt(colorLimitSlider.max, 10);
   const value = Number.parseInt(colorLimitSlider.value, 10);
-  const progress = ((value - minimum) / (maximum - minimum)) * 100;
+  const range = maximum - minimum;
+  const progress = range <= 0 ? 100 : ((value - minimum) / range) * 100;
 
   colorLimitSlider.style.setProperty("--range-progress", `${progress}%`);
+}
+
+function maybePlaySliderSound(): void {
+  const nextValue = Number.parseInt(colorLimitSlider.value, 10);
+  const now = performance.now();
+
+  if (nextValue === lastSliderSoundValue) {
+    return;
+  }
+
+  lastSliderSoundValue = nextValue;
+  if (now - lastSliderSoundAt < sliderSoundThrottleMs) {
+    return;
+  }
+
+  lastSliderSoundAt = now;
+  playUiSound("slider", {
+    playbackRate: getSliderSoundPlaybackRate(nextValue),
+  });
 }
 
 function applyPreviewFont(fontName?: string): void {
@@ -452,6 +551,95 @@ function getFontMimeType(format: string): string {
     default:
       return "font/ttf";
   }
+}
+
+function createUiSoundPools(): Record<UiSoundName, UiSoundPool> {
+  return Object.fromEntries(
+    Object.entries(uiSoundDefinitions).map(([name, definition]) => {
+      const instances = Array.from({ length: definition.poolSize }, () => {
+        const audio = new Audio(definition.src);
+        audio.preload = "auto";
+        audio.volume = definition.volume;
+        configureAudioPitchBehavior(audio);
+        return audio;
+      });
+
+      return [name, { index: 0, instances }];
+    }),
+  ) as Record<UiSoundName, UiSoundPool>;
+}
+
+function createUiSoundPlaybackIndexes(): Record<UiSoundName, number> {
+  return Object.fromEntries(
+    Object.keys(uiSoundDefinitions).map((name) => [name, 0]),
+  ) as Record<UiSoundName, number>;
+}
+
+function playUiSound(name: UiSoundName, options: UiSoundPlayOptions = {}): void {
+  const pool = uiSoundPools[name];
+  const audio = pool.instances[pool.index];
+  const definition = uiSoundDefinitions[name];
+  pool.index = (pool.index + 1) % pool.instances.length;
+
+  audio.currentTime = 0;
+  audio.playbackRate =
+    options.playbackRate ?? nextUiSoundPlaybackRate(name, definition.playbackRates);
+  void audio.play().catch(() => {
+    // Ignore autoplay-related rejections until the user has interacted.
+  });
+}
+
+function configureAudioPitchBehavior(audio: HTMLAudioElement): void {
+  audio.defaultPlaybackRate = 1;
+
+  const pitchAwareAudio = audio as HTMLAudioElement & {
+    mozPreservesPitch?: boolean;
+    preservesPitch?: boolean;
+    webkitPreservesPitch?: boolean;
+  };
+
+  if ("preservesPitch" in pitchAwareAudio) {
+    pitchAwareAudio.preservesPitch = false;
+  }
+  if ("mozPreservesPitch" in pitchAwareAudio) {
+    pitchAwareAudio.mozPreservesPitch = false;
+  }
+  if ("webkitPreservesPitch" in pitchAwareAudio) {
+    pitchAwareAudio.webkitPreservesPitch = false;
+  }
+}
+
+function getSliderSoundPlaybackRate(value: number): number {
+  const minimum = Number.parseInt(colorLimitSlider.min, 10);
+  const maximum = Number.parseInt(colorLimitSlider.max, 10);
+  const range = maximum - minimum;
+  const normalizedValue = range <= 0 ? 1 : (value - minimum) / range;
+  const clampedValue = Math.min(1, Math.max(0, normalizedValue));
+
+  return (
+    sliderMinPlaybackRate +
+    (sliderMaxPlaybackRate - sliderMinPlaybackRate) * clampedValue
+  );
+}
+
+function getCurrentMaxColorLimit(): number {
+  return Number.parseInt(colorLimitSlider.max, 10);
+}
+
+function resolveColorLimitMax(visibleCharacters: number): number {
+  return Math.max(
+    minColorLimit,
+    Math.min(maxColorLimit, visibleCharacters),
+  );
+}
+
+function nextUiSoundPlaybackRate(
+  name: UiSoundName,
+  playbackRates: number[],
+): number {
+  const index = uiSoundPlaybackIndexes[name];
+  uiSoundPlaybackIndexes[name] = (index + 1) % playbackRates.length;
+  return playbackRates[index];
 }
 
 function nextAccentColor(): string {
