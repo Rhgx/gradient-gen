@@ -195,7 +195,7 @@ app.innerHTML = `
 
         <div class="output-block">
           <div class="output-block__header">
-            <h3>RichText Output</h3>
+            <h3>Output</h3>
             <button id="copyButton" class="gel-btn gel-btn--silver gel-btn--sm" type="button">
               Copy
             </button>
