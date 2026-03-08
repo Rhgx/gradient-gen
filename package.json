@@ -1,6 +1,6 @@
 {
   "name": "gradient-gen-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "A static Vite + TypeScript Roblox RichText gradient generator with build-time font scraping.",
   "scripts": {

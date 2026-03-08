@@ -2,6 +2,7 @@ export interface GradientInput {
   text: string;
   colors: string[];
   fontName?: string;
+  colorLimit?: number;
 }
 
 export interface ValidationError {
@@ -9,7 +10,8 @@ export interface ValidationError {
     | "INVALID_TEXT"
     | "INVALID_COLOR"
     | "DUPLICATE_COLORS"
-    | "TOO_FEW_COLORS";
+    | "TOO_FEW_COLORS"
+    | "INVALID_COLOR_LIMIT";
   message: string;
 }
 
@@ -110,6 +112,7 @@ export function generateGradientResult(input: GradientInput): GradientResult {
     (color) => normalizeHexColor(color) as string,
   );
   const visibleCharacterCount = countVisibleCharacters(input.text);
+  const colorLimit = normalizeColorLimit(input.colorLimit);
 
   if (visibleCharacterCount === 0) {
     return {
@@ -127,14 +130,23 @@ export function generateGradientResult(input: GradientInput): GradientResult {
   const gradientColors =
     visibleCharacterCount === 1
       ? [normalizedColors[0]]
-      : generateGradientColors(normalizedColors, visibleCharacterCount);
+      : resolveGradientColors(
+          normalizedColors,
+          visibleCharacterCount,
+          colorLimit,
+        );
 
   const previewSegments: PreviewSegment[] = [];
   const outputParts: string[] = [];
+  let currentTextRun = "";
+  let currentTextRunColor: string | null = null;
   let visibleIndex = 0;
 
   for (const char of previewChars) {
     if (isWhitespace(char)) {
+      flushTextRun(outputParts, currentTextRunColor, currentTextRun);
+      currentTextRun = "";
+      currentTextRunColor = null;
       previewSegments.push({
         char,
         color: null,
@@ -150,11 +162,18 @@ export function generateGradientResult(input: GradientInput): GradientResult {
       color,
       isWhitespace: false,
     });
-    outputParts.push(
-      `<font color="${color}">${escapeRichText(char)}</font>`,
-    );
+
+    if (color !== currentTextRunColor) {
+      flushTextRun(outputParts, currentTextRunColor, currentTextRun);
+      currentTextRun = "";
+      currentTextRunColor = color;
+    }
+
+    currentTextRun += escapeRichText(char);
     visibleIndex += 1;
   }
+
+  flushTextRun(outputParts, currentTextRunColor, currentTextRun);
 
   const richText = input.fontName?.trim()
     ? `<font face="${escapeRichText(input.fontName.trim())}">${outputParts.join("")}</font>`
@@ -207,7 +226,73 @@ function validateInput(input: GradientInput): ValidationError[] {
     });
   }
 
+  if (
+    input.colorLimit !== undefined &&
+    input.colorLimit !== null &&
+    normalizeColorLimit(input.colorLimit) === null
+  ) {
+    errors.push({
+      code: "INVALID_COLOR_LIMIT",
+      message: "Color limit must be a whole number of at least 2.",
+    });
+  }
+
   return errors;
+}
+
+function normalizeColorLimit(value?: number): number | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (!Number.isInteger(value) || value < 2) {
+    return null;
+  }
+
+  return value;
+}
+
+function flushTextRun(
+  outputParts: string[],
+  color: string | null,
+  text: string,
+): void {
+  if (!color || text.length === 0) {
+    return;
+  }
+
+  outputParts.push(`<font color="${color}">${text}</font>`);
+}
+
+function resolveGradientColors(
+  colors: string[],
+  totalSteps: number,
+  colorLimit: number | null,
+): string[] {
+  if (!colorLimit || colorLimit >= totalSteps) {
+    return generateGradientColors(colors, totalSteps);
+  }
+
+  const palette = generateGradientColors(colors, colorLimit);
+  return distributeGradientPalette(palette, totalSteps);
+}
+
+function distributeGradientPalette(palette: string[], totalSteps: number): string[] {
+  if (palette.length === 0 || totalSteps <= 0) {
+    return [];
+  }
+
+  if (palette.length >= totalSteps) {
+    return palette.slice(0, totalSteps);
+  }
+
+  return Array.from({ length: totalSteps }, (_, index) => {
+    const paletteIndex = Math.min(
+      Math.floor((index * palette.length) / totalSteps),
+      palette.length - 1,
+    );
+    return palette[paletteIndex];
+  });
 }
 
 function isWhitespace(char: string): boolean {

@@ -52,6 +52,35 @@ describe("generateGradientResult", () => {
     expect(countVisibleCharacters("A! ?")).toBe(3);
   });
 
+  it("limits the generated output to a fixed number of colors", () => {
+    const result = generateGradientResult({
+      text: "ABCDE",
+      colors: ["#FF0000", "#0000FF"],
+      colorLimit: 3,
+    });
+
+    expect(result.gradientColors).toEqual([
+      "#FF0000",
+      "#FF0000",
+      "#800080",
+      "#800080",
+      "#0000FF",
+    ]);
+    expect(new Set(result.gradientColors).size).toBe(3);
+  });
+
+  it("combines adjacent characters that share the same color", () => {
+    const result = generateGradientResult({
+      text: "AB CD",
+      colors: ["#FF0000", "#0000FF"],
+      colorLimit: 2,
+    });
+
+    expect(result.richText).toBe(
+      '<font color="#FF0000">AB</font> <font color="#0000FF">CD</font>',
+    );
+  });
+
   it("returns validation errors for duplicate or invalid colors", () => {
     const result = generateGradientResult({
       text: "Test",
@@ -62,6 +91,18 @@ describe("generateGradientResult", () => {
       "INVALID_COLOR",
       "DUPLICATE_COLORS",
       "TOO_FEW_COLORS",
+    ]);
+  });
+
+  it("returns validation errors for an invalid color limit", () => {
+    const result = generateGradientResult({
+      text: "Test",
+      colors: ["#FF0000", "#00FF00"],
+      colorLimit: 1,
+    });
+
+    expect(result.validationErrors.map((error) => error.code)).toEqual([
+      "INVALID_COLOR_LIMIT",
     ]);
   });
 

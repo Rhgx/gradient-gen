@@ -11,6 +11,10 @@ import "./generated/preview-fonts.css";
 import "./styles.css";
 
 const defaultColors = ["#4A90E2", "#7EB8FF", "#F3953D"];
+const defaultPreviewFontName = "Source Sans Pro";
+const minColorLimit = 2;
+const maxColorLimit = 64;
+const defaultColorLimit = 8;
 const previewFontsByName = new Map(
   previewFontCatalog.fonts.map((font) => [font.name, font]),
 );
@@ -69,17 +73,73 @@ app.innerHTML = `
           </button>
         </div>
 
+        <div class="section-divider">
+          <span>Gradient Steps</span>
+        </div>
+
+        <div id="colorLimitControl" class="gloss-control" data-enabled="false">
+          <div class="gloss-control__header">
+            <label class="gloss-toggle" for="colorLimitToggle">
+              <input
+                id="colorLimitToggle"
+                class="gloss-toggle__input"
+                type="checkbox"
+              />
+              <span class="gloss-toggle__switch" aria-hidden="true"></span>
+              <span class="gloss-toggle__copy">
+                <strong>Limit generated colors</strong>
+                <small>Step the blend into a fixed palette for banded output.</small>
+              </span>
+            </label>
+          </div>
+
+          <div class="gloss-control__body">
+            <label class="gloss-number" for="colorLimitInput">
+              <input
+                id="colorLimitInput"
+                class="gel-input gloss-number__input"
+                type="number"
+                min="${minColorLimit}"
+                max="${maxColorLimit}"
+                step="1"
+                value="${defaultColorLimit}"
+                inputmode="numeric"
+                aria-label="Color limit"
+                disabled
+              />
+            </label>
+
+            <div class="gloss-range">
+              <input
+                id="colorLimitSlider"
+                class="gloss-slider"
+                type="range"
+                min="${minColorLimit}"
+                max="${maxColorLimit}"
+                step="1"
+                value="${defaultColorLimit}"
+                aria-label="Color limit slider"
+                disabled
+              />
+              <div class="gloss-range__legend" aria-hidden="true">
+                <span>${minColorLimit}</span>
+                <span>${maxColorLimit}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <p class="hint-text">
-          Drag the grip to reorder. Spaces stay uncolored.
+          Drag the grip to reorder. Spaces stay uncolored, and the color cap stays optional.
         </p>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card card--output">
       <div class="card-tab">
         <h2>Output</h2>
       </div>
-      <div class="card-body">
+      <div class="card-body card-body--output">
         <div id="feedback" class="feedback" role="status"></div>
 
         <div class="output-block">
@@ -96,7 +156,7 @@ app.innerHTML = `
               Copy
             </button>
           </div>
-          <textarea id="outputArea" class="gel-input gel-output" rows="10" readonly></textarea>
+          <textarea id="outputArea" class="gel-input gel-output" readonly></textarea>
         </div>
       </div>
     </section>
@@ -112,9 +172,16 @@ const outputArea = getElement<HTMLTextAreaElement>("#outputArea");
 const addColorButton = getElement<HTMLButtonElement>("#addColorButton");
 const resetPaletteButton = getElement<HTMLButtonElement>("#resetPaletteButton");
 const copyButton = getElement<HTMLButtonElement>("#copyButton");
+const colorLimitControl = getElement<HTMLDivElement>("#colorLimitControl");
+const colorLimitToggle = getElement<HTMLInputElement>("#colorLimitToggle");
+const colorLimitInput = getElement<HTMLInputElement>("#colorLimitInput");
+const colorLimitSlider = getElement<HTMLInputElement>("#colorLimitSlider");
 
 renderFontOptions();
+preloadPreviewFonts();
 resetPalette();
+syncColorLimitValue(defaultColorLimit);
+updateColorLimitState();
 
 new Sortable(colorList, {
   animation: 160,
@@ -131,6 +198,35 @@ addColorButton.addEventListener("click", () => {
 resetPaletteButton.addEventListener("click", () => {
   resetPalette();
   renderOutput();
+});
+colorLimitToggle.addEventListener("change", () => {
+  updateColorLimitState();
+  renderOutput();
+});
+colorLimitSlider.addEventListener("input", () => {
+  syncColorLimitValue(Number.parseInt(colorLimitSlider.value, 10));
+  renderOutput();
+});
+colorLimitInput.addEventListener("input", () => {
+  const nextValue = parseColorLimit(colorLimitInput.value);
+
+  if (nextValue === null) {
+    colorLimitInput.dataset.invalid = "true";
+    renderOutput();
+    return;
+  }
+
+  colorLimitInput.dataset.invalid = "false";
+  syncColorLimitValue(nextValue);
+  renderOutput();
+});
+colorLimitInput.addEventListener("blur", () => {
+  if (parseColorLimit(colorLimitInput.value) !== null) {
+    return;
+  }
+
+  colorLimitInput.dataset.invalid = "false";
+  syncColorLimitValue(Number.parseInt(colorLimitSlider.value, 10));
 });
 copyButton.addEventListener("click", async () => {
   await navigator.clipboard.writeText(outputArea.value);
@@ -151,6 +247,26 @@ function renderFontOptions(): void {
     ),
   ];
   fontSelect.innerHTML = options.join("");
+}
+
+function preloadPreviewFonts(): void {
+  for (const font of previewFontCatalog.fonts) {
+    if (!document.head.querySelector(`link[rel="preload"][href="${font.url}"]`)) {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "font";
+      link.href = font.url;
+      link.type = getFontMimeType(font.format);
+      link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+    }
+  }
+
+  void Promise.allSettled(
+    previewFontCatalog.fonts.map((font) =>
+      document.fonts.load(`${font.style} ${font.weight} 1em "${font.name}"`),
+    ),
+  );
 }
 
 function addColorStop(value: string): void {
@@ -212,14 +328,17 @@ function renderOutput(): void {
     colorList.querySelectorAll<HTMLInputElement>(".color-stop__hex"),
   ).map((input) => input.value);
   const selectedFontName = fontSelect.value || undefined;
+  const colorLimit = getSelectedColorLimit();
 
   const result = generateGradientResult({
     text: textInput.value,
     colors,
     fontName: selectedFontName,
+    colorLimit,
   });
 
   const visibleCharacters = countVisibleCharacters(textInput.value);
+  const usedColorCount = new Set(result.gradientColors).size;
   outputArea.value = result.richText;
   applyPreviewFont(selectedFontName);
 
@@ -247,7 +366,13 @@ function renderOutput(): void {
 
   const messages = [...result.validationErrors.map((error) => error.message)];
   if (messages.length === 0 && visibleCharacters > 0) {
-    messages.push("Preview and export are now driven by the same typed generator.");
+    if (colorLimit) {
+      messages.push(
+        `Color cap active: ${usedColorCount} distinct colors across ${visibleCharacters} visible characters.`,
+      );
+    } else {
+      messages.push("Preview and export are now driven by the same typed generator.");
+    }
   }
 
   feedback.innerHTML = messages
@@ -256,25 +381,77 @@ function renderOutput(): void {
   feedback.dataset.state = result.validationErrors.length > 0 ? "error" : "ready";
 }
 
-function applyPreviewFont(fontName?: string): void {
-  if (!fontName) {
-    previewSurface.style.removeProperty("font-family");
-    previewSurface.style.removeProperty("font-weight");
-    previewSurface.style.removeProperty("font-style");
-    return;
+function getSelectedColorLimit(): number | undefined {
+  if (!colorLimitToggle.checked) {
+    return undefined;
   }
 
-  const previewFont = previewFontsByName.get(fontName);
+  return parseColorLimit(colorLimitInput.value) ?? undefined;
+}
+
+function parseColorLimit(value: string): number | null {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed)) {
+    return null;
+  }
+
+  return clampColorLimit(parsed);
+}
+
+function clampColorLimit(value: number): number {
+  return Math.min(maxColorLimit, Math.max(minColorLimit, value));
+}
+
+function syncColorLimitValue(value: number): void {
+  const normalizedValue = clampColorLimit(value);
+  const nextValue = String(normalizedValue);
+
+  colorLimitInput.value = nextValue;
+  colorLimitSlider.value = nextValue;
+  updateSliderProgress();
+}
+
+function updateColorLimitState(): void {
+  const enabled = colorLimitToggle.checked;
+  colorLimitControl.dataset.enabled = String(enabled);
+  colorLimitInput.disabled = !enabled;
+  colorLimitSlider.disabled = !enabled;
+}
+
+function updateSliderProgress(): void {
+  const minimum = Number.parseInt(colorLimitSlider.min, 10);
+  const maximum = Number.parseInt(colorLimitSlider.max, 10);
+  const value = Number.parseInt(colorLimitSlider.value, 10);
+  const progress = ((value - minimum) / (maximum - minimum)) * 100;
+
+  colorLimitSlider.style.setProperty("--range-progress", `${progress}%`);
+}
+
+function applyPreviewFont(fontName?: string): void {
+  const resolvedFontName = fontName || defaultPreviewFontName;
+  const previewFont = previewFontsByName.get(resolvedFontName);
   if (!previewFont) {
-    previewSurface.style.fontFamily = `"${fontName}", "Fredoka", "Trebuchet MS", sans-serif`;
+    previewSurface.style.fontFamily = `"${resolvedFontName}", "Trebuchet MS", sans-serif`;
     previewSurface.style.fontWeight = "400";
     previewSurface.style.fontStyle = "normal";
     return;
   }
 
-  previewSurface.style.fontFamily = `"${previewFont.name}", "Fredoka", "Trebuchet MS", sans-serif`;
+  previewSurface.style.fontFamily = `"${previewFont.name}", "Trebuchet MS", sans-serif`;
   previewSurface.style.fontWeight = String(previewFont.weight);
   previewSurface.style.fontStyle = previewFont.style;
+}
+
+function getFontMimeType(format: string): string {
+  switch (format) {
+    case "opentype":
+      return "font/otf";
+    case "truetype":
+      return "font/ttf";
+    default:
+      return "font/ttf";
+  }
 }
 
 function nextAccentColor(): string {
