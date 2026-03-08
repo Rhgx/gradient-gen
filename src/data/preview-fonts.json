@@ -1,0 +1,287 @@
+{
+  "generatedAt": "2026-03-08T09:54:40.506Z",
+  "sourceUrl": "https://create.roblox.com/docs/reference/engine/datatypes/Font",
+  "robloxVersion": "C:\\Users\\TR\\AppData\\Local\\Roblox\\Versions\\version-19073b5104cb45df\\content\\fonts",
+  "fonts": [
+    {
+      "name": "Accanthis ADF Std",
+      "url": "/roblox-fonts/AccanthisADFStd-Regular.otf",
+      "weight": 400,
+      "style": "normal",
+      "format": "opentype"
+    },
+    {
+      "name": "Amatic SC",
+      "url": "/roblox-fonts/AmaticSC-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Arimo",
+      "url": "/roblox-fonts/Arimo-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Balthazar",
+      "url": "/roblox-fonts/Balthazar-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Bangers",
+      "url": "/roblox-fonts/Bangers-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Builder Extended",
+      "url": "/roblox-fonts/BuilderExtended-Regular.otf",
+      "weight": 400,
+      "style": "normal",
+      "format": "opentype"
+    },
+    {
+      "name": "Builder Mono",
+      "url": "/roblox-fonts/BuilderMono-Regular.otf",
+      "weight": 400,
+      "style": "normal",
+      "format": "opentype"
+    },
+    {
+      "name": "Builder Sans",
+      "url": "/roblox-fonts/BuilderSans-Regular.otf",
+      "weight": 400,
+      "style": "normal",
+      "format": "opentype"
+    },
+    {
+      "name": "Comic Neue Angular",
+      "url": "/roblox-fonts/ComicNeue-Angular-Bold.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Creepster",
+      "url": "/roblox-fonts/Creepster-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Denk One",
+      "url": "/roblox-fonts/DenkOne-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Fondamento",
+      "url": "/roblox-fonts/Fondamento-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Fredoka One",
+      "url": "/roblox-fonts/FredokaOne-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Grenze Gotisch",
+      "url": "/roblox-fonts/GrenzeGotisch-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Guru",
+      "url": "/roblox-fonts/Guru-Regular.otf",
+      "weight": 400,
+      "style": "normal",
+      "format": "opentype"
+    },
+    {
+      "name": "Highway Gothic",
+      "url": "/roblox-fonts/HWYGOTH.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Inconsolata",
+      "url": "/roblox-fonts/Inconsolata-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Indie Flower",
+      "url": "/roblox-fonts/IndieFlower-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Josefin Sans",
+      "url": "/roblox-fonts/JosefinSans-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Jura",
+      "url": "/roblox-fonts/Jura-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Kalam",
+      "url": "/roblox-fonts/Kalam-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Luckiest Guy",
+      "url": "/roblox-fonts/LuckiestGuy-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Merriweather",
+      "url": "/roblox-fonts/Merriweather-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Michroma",
+      "url": "/roblox-fonts/Michroma-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Montserrat",
+      "url": "/roblox-fonts/Montserrat-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Nunito",
+      "url": "/roblox-fonts/Nunito-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Oswald",
+      "url": "/roblox-fonts/Oswald-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Patrick Hand",
+      "url": "/roblox-fonts/PatrickHand-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Permanent Marker",
+      "url": "/roblox-fonts/PermanentMarker-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Press Start 2P",
+      "url": "/roblox-fonts/PressStart2P-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Roboto",
+      "url": "/roblox-fonts/Roboto-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Roboto Condensed",
+      "url": "/roblox-fonts/RobotoCondensed-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Roboto Mono",
+      "url": "/roblox-fonts/RobotoMono-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Roman Antique",
+      "url": "/roblox-fonts/RomanAntique.otf",
+      "weight": 400,
+      "style": "normal",
+      "format": "opentype"
+    },
+    {
+      "name": "Sarpanch",
+      "url": "/roblox-fonts/Sarpanch-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Source Sans Pro",
+      "url": "/roblox-fonts/SourceSansPro-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Special Elite",
+      "url": "/roblox-fonts/SpecialElite-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Titillium Web",
+      "url": "/roblox-fonts/TitilliumWeb-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Ubuntu",
+      "url": "/roblox-fonts/Ubuntu-Regular.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    },
+    {
+      "name": "Zekton",
+      "url": "/roblox-fonts/zekton_rg.ttf",
+      "weight": 400,
+      "style": "normal",
+      "format": "truetype"
+    }
+  ]
+}
