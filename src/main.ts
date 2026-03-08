@@ -7,7 +7,6 @@ import {
   generateGradientResult,
   normalizeHexColor,
 } from "./lib/gradient";
-import "./generated/preview-fonts.css";
 import "./styles.css";
 
 const defaultColors = ["#4A90E2", "#7EB8FF", "#F3953D"];
@@ -21,7 +20,7 @@ const sliderMaxPlaybackRate = 1.18;
 const previewFontsByName = new Map(
   previewFontCatalog.fonts.map((font) => [font.name, font]),
 );
-const previewFontLoadPromises = new Map<string, Promise<FontFace[]>>();
+const previewFontLoadPromises = new Map<string, Promise<FontFace | null>>();
 
 type UiSoundName = "button" | "toggle" | "slider" | "confirm";
 
@@ -43,25 +42,25 @@ interface UiSoundPlayOptions {
 
 const uiSoundDefinitions: Record<UiSoundName, UiSoundDefinition> = {
   button: {
-    src: "/sfx/button-click-soft.wav",
+    src: resolvePublicAssetUrl("sfx/button-click-soft.wav"),
     volume: 0.16,
     poolSize: 3,
     playbackRates: [1, 0.9, 1.08],
   },
   toggle: {
-    src: "/sfx/toggle-switch.wav",
+    src: resolvePublicAssetUrl("sfx/toggle-switch.wav"),
     volume: 0.2,
     poolSize: 3,
     playbackRates: [1.04, 0.82, 0.92],
   },
   slider: {
-    src: "/sfx/slider-tick.wav",
+    src: resolvePublicAssetUrl("sfx/slider-tick.wav"),
     volume: 0.12,
     poolSize: 4,
     playbackRates: [1],
   },
   confirm: {
-    src: "/sfx/button-click-soft.wav",
+    src: resolvePublicAssetUrl("sfx/button-click-soft.wav"),
     volume: 0.18,
     poolSize: 2,
     playbackRates: [1.14, 0.92],
@@ -532,11 +531,28 @@ function warmPreviewFont(fontName?: string): void {
     return;
   }
 
-  const loadPromise = document.fonts
-    .load(`${previewFont.style} ${previewFont.weight} 1em "${previewFont.name}"`)
-    .catch(() => []);
+  const fontFace = new FontFace(
+    previewFont.name,
+    `url("${resolvePublicAssetUrl(previewFont.url)}")`,
+    {
+      style: previewFont.style,
+      weight: String(previewFont.weight),
+    },
+  );
+  const loadPromise = fontFace
+    .load()
+    .then((loadedFontFace) => {
+      document.fonts.add(loadedFontFace);
+      return loadedFontFace;
+    })
+    .catch(() => null);
 
   previewFontLoadPromises.set(previewFont.name, loadPromise);
+}
+
+function resolvePublicAssetUrl(assetPath: string): string {
+  const normalizedAssetPath = assetPath.replace(/^\/+/, "");
+  return `${import.meta.env.BASE_URL}${normalizedAssetPath}`;
 }
 
 function createUiSoundPools(): Record<UiSoundName, UiSoundPool> {
